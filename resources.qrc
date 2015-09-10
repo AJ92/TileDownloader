@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/icon">
+        <file>icons/map_mode.png</file>
+        <file>icons/object_mode.png</file>
+    </qresource>
+</RCC>
