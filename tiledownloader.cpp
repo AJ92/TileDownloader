@@ -19,20 +19,54 @@ TileDownloader::TileDownloader(QWidget *parent) :
 {
     ui->setupUi(this);
 
+    //////////////////////////////////////////////////
+    //DOWNLOADING STUFF
+
     //keep 32 images in ram and store once full or done
-    buffer_size = 128;
+    buffer_size = 1024;
 
     connect(ui->pushButtonCancel,SIGNAL(clicked()),this,SLOT(cancelDownload()));
     connect(ui->pushButtonBrowse,SIGNAL(clicked()),this,SLOT(setOutputPath()));
     connect(ui->pushButtonDownload,SIGNAL(clicked()),this,SLOT(downloadTiles()));
     connect(ui->pushButtonStich,SIGNAL(clicked()),this,SLOT(stichDownloadedTiles()));
 
-    fdl = new FileDownloader(this);
-    connect(fdl, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage()));
+    fdl_1 = new FileDownloader(this);
+    connect(fdl_1, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_1()));
+
+    fdl_2 = new FileDownloader(this);
+    connect(fdl_2, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_2()));
+
+    fdl_3 = new FileDownloader(this);
+    connect(fdl_3, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_3()));
+
+    fdl_4 = new FileDownloader(this);
+    connect(fdl_4, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_4()));
+
+
+    //////////////////////////////////////////////////
+    //STICHING STUFF
+    m_stichthread = new Stichthread();
+
+    // Worker thread
+    connect( m_stichthread, SIGNAL( progress(const QString&) ),
+             this, SLOT( threadStatus(const QString&) ) );
+    /*
+    connect( m_stichthread, SIGNAL( ready(bool) ),
+             goButton, SLOT( setEnabled(bool) ) );
+    */
+    connect( m_stichthread, SIGNAL( results( const QString& ) ),
+             this, SLOT( threadDone( const QString& ) ) );
+
+    // Launch worker thread
+    m_stichthread->start();
+
 }
 
 TileDownloader::~TileDownloader()
 {
+    m_stichthread->quit();
+    m_stichthread->wait();
+    delete m_stichthread;
     delete ui;
 }
 
@@ -107,6 +141,13 @@ void TileDownloader::downloadTiles(){
     //work it
     tiles_to_load.clear();
     current_tile_index = 0;
+
+    current_tile_index_1 = 0;
+    current_tile_index_2 = 0;
+    current_tile_index_3 = 0;
+    current_tile_index_4 = 0;
+
+
     current_outputPath = outputPath;
     current_level = level;
 
@@ -155,78 +196,180 @@ void TileDownloader::downloadTiles(){
     }
 
     qDebug() << tiles_to_load.size();
-    startImgDownloader();
+    startImgDownloader_1();
+    startImgDownloader_2();
+    startImgDownloader_3();
+    startImgDownloader_4();
 
 }
 
-void TileDownloader::startImgDownloader(){
+void TileDownloader::startImgDownloader_1(){
     setProgress(current_tile_index,tiles_to_load.size());
 
     if(image_buffer.size() >= buffer_size){
         writeImagesToDisk();
     }
 
-    disconnect(fdl, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage()));
+    disconnect(fdl_1, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_1()));
     if(current_tile_index < tiles_to_load.size()){
-        //build url...
+        current_tile_index_1 = current_tile_index;
+        current_tile_index += 1;
 
-        //bing has multiple servers to balance loads so lets use them...
-        //random number between 0 and 3
-        int randServer = rand()%(3-0 + 1) + 0;
-
-        //https://t3.ssl.ak.tiles.virtualearth.net/tiles/a122100100223310303.jpeg?g=3675&n=z
-        //https://t1.ssl.ak.tiles.virtualearth.net/tiles/a120212020102130102.jpeg?g=3986&n=z
-
-        /*
-        QUrl imageUrl("http://ak.dynamic.t" +
-                      QString::number(randServer) +
-                      ".tiles.virtualearth.net/comp/ch/" +
-                      MapUtils::TileXYToQuadKey(tiles_to_load[current_tile_index].x(),
-                                                tiles_to_load[current_tile_index].y(),
-                                                current_level)+
-                      "?mkt=eng-eng&it=A,G,L,LA&shading=hill&og=98&n=z");
-                      */
-
-        QUrl imageUrl("https://t" +
-                      QString::number(randServer) +
-                      ".ssl.ak.tiles.virtualearth.net/tiles/a" +
-                      MapUtils::TileXYToQuadKey(tiles_to_load[current_tile_index].x(),
-                                                tiles_to_load[current_tile_index].y(),
-                                                current_level)+
-                      ".jpeg?g=3986&n=z");
-        fdl->download(imageUrl);
-        connect(fdl, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage()));
+        connect(fdl_1, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_1()));
+        fdl_1->download(getnextUrl(current_tile_index_1));
     }
     else{
-        writeImagesToDisk();
-        QMessageBox msgBox;
-        msgBox.setWindowTitle("Tile Downloader");
-        msgBox.setText("Done.");
-        msgBox.setIcon(QMessageBox::Information);
-        msgBox.setInformativeText("Downloaded all images!");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        int ret = msgBox.exec();
+        downloadDone();
     }
 }
 
-void TileDownloader::loadAndSaveImage(){
+void TileDownloader::startImgDownloader_2(){
+    setProgress(current_tile_index,tiles_to_load.size());
+
+    if(image_buffer.size() >= buffer_size){
+        writeImagesToDisk();
+    }
+
+    disconnect(fdl_2, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_2()));
+    if(current_tile_index < tiles_to_load.size()){
+        current_tile_index_2 = current_tile_index;
+        current_tile_index += 1;
+
+        connect(fdl_2, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_2()));
+        fdl_2->download(getnextUrl(current_tile_index_2));
+    }
+    else{
+        downloadDone();
+    }
+}
+
+void TileDownloader::startImgDownloader_3(){
+    setProgress(current_tile_index,tiles_to_load.size());
+
+    if(image_buffer.size() >= buffer_size){
+        writeImagesToDisk();
+    }
+
+    disconnect(fdl_3, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_3()));
+    if(current_tile_index < tiles_to_load.size()){
+        current_tile_index_3 = current_tile_index;
+        current_tile_index += 1;
+
+        connect(fdl_3, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_3()));
+        fdl_3->download(getnextUrl(current_tile_index_3));
+    }
+    else{
+        downloadDone();
+    }
+}
+
+void TileDownloader::startImgDownloader_4(){
+    setProgress(current_tile_index,tiles_to_load.size());
+
+    if(image_buffer.size() >= buffer_size){
+        writeImagesToDisk();
+    }
+
+    disconnect(fdl_4, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_4()));
+    if(current_tile_index < tiles_to_load.size()){
+        current_tile_index_4 = current_tile_index;
+        current_tile_index += 1;
+
+        connect(fdl_4, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_4()));
+        fdl_4->download(getnextUrl(current_tile_index_4));
+    }
+    else{
+        downloadDone();
+    }
+}
+
+QUrl TileDownloader::getnextUrl(int tileIndex){
+    //build url...
+
+    //bing has multiple servers to balance loads so lets use them...
+    //random number between 0 and 3
+    int randServer = rand()%(3-0 + 1) + 0;
+
+    //https://t3.ssl.ak.tiles.virtualearth.net/tiles/a122100100223310303.jpeg?g=3675&n=z
+    //https://t1.ssl.ak.tiles.virtualearth.net/tiles/a120212020102130102.jpeg?g=3986&n=z
+
+    return QUrl("https://t" +
+                  QString::number(randServer) +
+                  ".ssl.ak.tiles.virtualearth.net/tiles/a" +
+                  MapUtils::TileXYToQuadKey(tiles_to_load[tileIndex].x(),
+                                            tiles_to_load[tileIndex].y(),
+                                            current_level)+
+                  ".jpeg?g=3986&n=z");
+}
+
+void TileDownloader::loadAndSaveImage_1(){
     QImage img;
-    img.loadFromData(fdl->downloadedData());
+    img.loadFromData(fdl_1->downloadedData());
 
+    storeDownloadedDiskInBuffer(img,current_tile_index_1);
+
+    //current_tile_index += 1;
+    startImgDownloader_1();
+}
+
+void TileDownloader::loadAndSaveImage_2(){
+    QImage img;
+    img.loadFromData(fdl_2->downloadedData());
+
+    storeDownloadedDiskInBuffer(img,current_tile_index_2);
+
+    //current_tile_index += 1;
+    startImgDownloader_2();
+}
+
+void TileDownloader::loadAndSaveImage_3(){
+    QImage img;
+    img.loadFromData(fdl_3->downloadedData());
+
+    storeDownloadedDiskInBuffer(img,current_tile_index_3);
+
+    //current_tile_index += 1;
+    startImgDownloader_3();
+}
+
+void TileDownloader::loadAndSaveImage_4(){
+    QImage img;
+    img.loadFromData(fdl_4->downloadedData());
+
+    storeDownloadedDiskInBuffer(img,current_tile_index_4);
+
+    //current_tile_index += 1;
+    startImgDownloader_4();
+}
+
+void TileDownloader::storeDownloadedDiskInBuffer(QImage &img, int tileIndex){
     ui->imgPreview->setPixmap(QPixmap::fromImage(img));
-
     image_buffer.append(img);
     path_buffer.append(current_outputPath + "/" +
-                       QString::number(tiles_to_load[current_tile_index].x()) + "-" +
-                       QString::number(tiles_to_load[current_tile_index].y()) + ".png");
+                       QString::number(tiles_to_load[tileIndex].x()) + "-" +
+                       QString::number(tiles_to_load[tileIndex].y()) + ".png");
+}
 
-    current_tile_index += 1;
-    startImgDownloader();
+void TileDownloader::downloadDone(){
+    writeImagesToDisk();
+    QApplication::beep();
+    /*
+    QMessageBox msgBox;
+    msgBox.setWindowTitle("Tile Downloader");
+    msgBox.setText("Done.");
+    msgBox.setIcon(QMessageBox::Information);
+    msgBox.setInformativeText("Downloaded all images!");
+    msgBox.setStandardButtons(QMessageBox::Ok);
+    msgBox.setDefaultButton(QMessageBox::Ok);
+    int ret = msgBox.exec();
+    */
 }
 
 void TileDownloader::cancelDownload(){
-    disconnect(fdl, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage()));
+    disconnect(fdl_1, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_1()));
+    disconnect(fdl_2, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_2()));
+    disconnect(fdl_3, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_3()));
+    disconnect(fdl_4, SIGNAL (downloaded()), this, SLOT (loadAndSaveImage_4()));
     ui->progressBar->setValue(0);
 
     QMessageBox msgBox;
@@ -236,7 +379,7 @@ void TileDownloader::cancelDownload(){
     msgBox.setInformativeText("Canceled all jobs!");
     msgBox.setStandardButtons(QMessageBox::Ok);
     msgBox.setDefaultButton(QMessageBox::Ok);
-    int ret = msgBox.exec();
+    msgBox.exec();
 }
 
 void TileDownloader::writeImagesToDisk(){
@@ -254,284 +397,22 @@ void TileDownloader::writeImagesToDisk(){
 
 //STICH
 
-bool TileDownloader::fileExists(QString path){
-    QFileInfo checkFile(path);
-    // check if file exists and if yes: Is it really a file and no directory?
-    if (checkFile.exists() && checkFile.isFile()) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void TileDownloader::getFilenamesInDir(QString dir, QStringList &filenames){
-    QDir currentDir(dir);
-
-    currentDir.setFilter(QDir::Files);
-    QStringList entries = currentDir.entryList();
-
-    for( QStringList::ConstIterator entry=entries.begin(); entry!=entries.end(); ++entry )
-    {
-        QString filename=*entry;
-        if((filename != ".") && (filename != ".."))
-        {
-            filenames.append(filename);
-        }
-    }
-}
-
-void TileDownloader::fillTilesToLoadFromDisk(){
-    QString outputPath = ui->lineEditOutputPath->text();
-
-    //try to create the output path if not existing
-    QDir dir;
-    if(!dir.mkpath(outputPath)){
-        QMessageBox msgBox;
-        msgBox.setWindowTitle("Tile Downloader");
-        msgBox.setText("Error.");
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setInformativeText("Input path non existing.");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        int ret = msgBox.exec();
-        return;
-    }
-
-    QStringList inputFileNames;
-    getFilenamesInDir(outputPath, inputFileNames);
-
-    for(int i = 0; i < inputFileNames.size(); i++){
-        QString currentFileName = inputFileNames[i];
-        if(currentFileName.contains("-") && currentFileName.contains(QString(".png"),Qt::CaseInsensitive)){
-            QStringList split = currentFileName.split("-");
-            if(split.size() < 2){
-                continue;
-            }
-            QString tileX = split[0];
-
-            QString split2 = split[1];
-            QStringList split3 = split2.split(".png",QString::KeepEmptyParts,Qt::CaseInsensitive);
-            if(split3.size() < 1){
-                continue;
-            }
-
-            QString tileY = split3[0];
-
-            //convert strings to integers
-            bool success = false;
-            int iTileX = tileX.toInt(&success);
-            success = false;
-            int iTileY = tileY.toInt(&success);
-
-            qDebug() << "X: " << iTileX << "  Y: " << iTileY;
-
-            tiles_to_load.append(QVector2D(iTileX,iTileY));
-        }
-    }
-}
 
 void TileDownloader::stichDownloadedTiles(){
+    m_stichthread->execute( ui->lineEditOutputPath->text() );
+}
+
+void TileDownloader::threadStatus(const QString& message){
+    ui->statusBar->showMessage( "Stiching: " + message, 3000);
+}
+
+void TileDownloader::threadDone(const QString &message){
     QMessageBox msgBox;
     msgBox.setWindowTitle("Tile Downloader");
-    msgBox.setText("This can take a while.");
+    msgBox.setText("Stiching stopped");
     msgBox.setIcon(QMessageBox::Information);
-    msgBox.setInformativeText("Don't worry, lean back and wait till i am done!");
+    msgBox.setInformativeText(message);
     msgBox.setStandardButtons(QMessageBox::Ok);
     msgBox.setDefaultButton(QMessageBox::Ok);
     msgBox.exec();
-
-    //calculate size of final image...
-    if(tiles_to_load.size() < 1){
-        QMessageBox msgBox;
-        msgBox.setWindowTitle("Tile Downloader");
-        msgBox.setText("No images downloaded during this session.");
-        msgBox.setIcon(QMessageBox::Information);
-        msgBox.setInformativeText("Checking output path for already existing images!");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        msgBox.exec();
-
-        fillTilesToLoadFromDisk();
-    }
-
-    if(tiles_to_load.size() < 1){
-        QMessageBox msgBox;
-        msgBox.setWindowTitle("Tile Downloader");
-        msgBox.setText("No images found in output path.");
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setInformativeText("Aborting stiching job...");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        msgBox.exec();
-        return;
-    }
-
-    current_outputPath = ui->lineEditOutputPath->text();
-
-
-    //calculate min max
-    int min_x;
-    int min_y;
-    int max_x;
-    int max_y;
-
-    //fill first data
-    min_x = tiles_to_load[0].x();
-    min_y = tiles_to_load[0].y();
-    max_x = tiles_to_load[0].x();
-    max_y = tiles_to_load[0].y();
-
-    for(int i = 0; i < tiles_to_load.size(); i++){
-        min_x = MapUtils::min(tiles_to_load[i].x(),min_x);
-        min_y = MapUtils::min(tiles_to_load[i].y(),min_y);
-        max_x = MapUtils::max(tiles_to_load[i].x(),max_x);
-        max_y = MapUtils::max(tiles_to_load[i].y(),max_y);
-    }
-
-
-
-
-    //fill the hashmap for better order and fast lookups
-    for(int i = 0; i < tiles_to_load.size(); i++){
-        QVector2D tile = tiles_to_load[i];
-        tiles_to_stich[tile.x() - min_x][tile.y() - min_y] =
-                QString::number(tile.x()) + "-" +
-                QString::number(tile.y()) + ".png";
-    }
-
-
-
-
-    //pre calc some values
-    int newTileSizeX = 4096 * 3;
-    int newTileSizeY = 4096 * 3;
-
-    int tilesToFitX = newTileSizeX / 256;
-    int tilesToFitY = newTileSizeY / 256;
-
-    int newImageCount = ceil(((float)((max_x - min_x) * 256) / (float)newTileSizeX)) *
-                        ceil(((float)((max_y - min_y) * 256) / (float)newTileSizeY));
-
-    int newTileCountX = ceil(((float)((max_x - min_x) * 256) / (float)newTileSizeX));
-    int newTileCountY = ceil(((float)((max_y - min_y) * 256) / (float)newTileSizeY));
-
-    qDebug() << "Final output should be: " << (max_x - min_x) * 256 << "  " << (max_y - min_y) * 256;
-    qDebug() << "Tiles to create: " << newImageCount;
-
-
-    int current_big_tile_x = 0;
-    int current_big_tile_y = 0;
-    int current_tile_x = 0;
-    int current_tile_y = 0;
-
-    bool working = true;
-
-    QImage *newBigTile = new QImage(
-                newTileSizeX,
-                newTileSizeY,
-                QImage::Format_ARGB32
-                );
-
-    qDebug() << "Tile Size should be: x: " << newTileSizeX << "  y: " << newTileSizeY;
-    qDebug() << "Tile Size: " << newBigTile->size();
-
-    QPainter * painter = new QPainter(newBigTile);
-
-    while(working){
-
-        if(tiles_to_stich.contains(current_tile_x)){
-            if(tiles_to_stich[current_tile_x].contains(current_tile_y)){
-                //we have a value, so lets try and load it and to write it onto the big tile
-                QImage tile(current_outputPath + "/" +
-                            tiles_to_stich[(current_big_tile_x * tilesToFitX) + current_tile_x]
-                            [(current_big_tile_y * tilesToFitX) + current_tile_y]);
-                if(!tile.isNull()){
-                    painter->drawImage(current_tile_x * 256,
-                                       current_tile_y * 256,
-                                       tile);
-                    qDebug() << "drawing";
-                }
-                else{
-                    qDebug() << "image was null";
-                }
-            }
-        }
-
-
-
-        current_tile_x += 1;
-
-        if(current_tile_x >= tilesToFitX){
-            current_tile_x = 0;
-            current_tile_y += 1;
-        }
-        if(current_tile_y >= tilesToFitY){
-
-            newBigTile->save(current_outputPath + "/" + "F-" +
-                             QString::number(current_big_tile_x) + "-" +
-                             QString::number(current_big_tile_y) + ".png");
-
-            qDebug() << "saving (y)";
-
-            current_tile_x = 0;
-            current_tile_y = 0;
-            current_big_tile_y += 1;
-
-            delete painter;
-            delete newBigTile;
-            newBigTile = new QImage(
-                            newTileSizeX,
-                            newTileSizeY,
-                            QImage::Format_ARGB32
-                            );
-            painter = new QPainter(newBigTile);
-        }
-        if(current_big_tile_y >= newTileCountY){
-
-            newBigTile->save(current_outputPath + "/" + "F-" +
-                             QString::number(current_big_tile_x) + "-" +
-                             QString::number(current_big_tile_y) + ".png");
-
-            qDebug() << "saving (x)";
-
-            current_big_tile_y = 0;
-            current_big_tile_x += 1;
-
-            delete painter;
-            delete newBigTile;
-            newBigTile = new QImage(
-                            newTileSizeX,
-                            newTileSizeY,
-                            QImage::Format_ARGB32
-                            );
-            painter = new QPainter(newBigTile);
-        }
-        if(current_big_tile_x >= newTileCountX){
-            working = false;
-        }
-    }
-
-    /*
-    QImage *finalImage = new QImage(
-                2000,//(max_x - min_x) * 256,
-                2000,//(max_y - min_y) * 256,
-                QImage::Format_ARGB32
-                );
-    */
-
-    //QPainter painter(finalImage);
-
-    //painter.drawPicture(0,0,);
-
-
-    {
-        QMessageBox msgBox;
-        msgBox.setWindowTitle("Tile Downloader");
-        msgBox.setText("Stiching done.");
-        msgBox.setIcon(QMessageBox::Critical);
-        msgBox.setInformativeText("Image should be in the output folder by now.");
-        msgBox.setStandardButtons(QMessageBox::Ok);
-        msgBox.setDefaultButton(QMessageBox::Ok);
-        msgBox.exec();
-    }
 }

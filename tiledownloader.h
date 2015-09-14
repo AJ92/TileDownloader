@@ -6,6 +6,9 @@
 #include <QList>
 #include <QImage>
 #include <QHash>
+#include <QUrl>
+
+#include "stichthread.h"
 
 namespace Ui {
 class TileDownloader;
@@ -24,11 +27,23 @@ public:
 //DOWNLOAD
 private:
     Ui::TileDownloader *ui;
-    FileDownloader * fdl;
+
+    FileDownloader * fdl_1;
+    FileDownloader * fdl_2;
+    FileDownloader * fdl_3;
+    FileDownloader * fdl_4;
 
     QString current_outputPath;
     QList<QVector2D> tiles_to_load;
+
     int current_tile_index;
+
+    int current_tile_index_1;
+    int current_tile_index_2;
+    int current_tile_index_3;
+    int current_tile_index_4;
+
+
     int current_level;
 
     QList<QImage> image_buffer;
@@ -41,25 +56,35 @@ private slots:
 
     //todo... send to a thread or so...
     void downloadTiles();
-    void startImgDownloader();
     void cancelDownload();
 
-    void loadAndSaveImage();
+    void startImgDownloader_1();
+    void startImgDownloader_2();
+    void startImgDownloader_3();
+    void startImgDownloader_4();
+
+
+    void loadAndSaveImage_1();
+    void loadAndSaveImage_2();
+    void loadAndSaveImage_3();
+    void loadAndSaveImage_4();
+
     void writeImagesToDisk();
 
+    void storeDownloadedDiskInBuffer(QImage &img, int tileIndex);
+
+    QUrl getnextUrl(int tileIndex);
+    void downloadDone();
 
 
 //STICH
 private:
-
-    QHash<int, QHash<int, QString> > tiles_to_stich;
-
-    bool fileExists(QString path);
-    void getFilenamesInDir(QString dir, QStringList &filenames);
-    void fillTilesToLoadFromDisk();
+    Stichthread * m_stichthread;
 
 private slots:
     void stichDownloadedTiles();
+    void threadStatus(const QString& message);
+    void threadDone(const QString &message);
 
 
 

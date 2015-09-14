@@ -15,12 +15,16 @@ TEMPLATE = app
 SOURCES += main.cpp\
     tiledownloader.cpp \
     maputils.cpp \
-    filedownloader.cpp
+    filedownloader.cpp \
+    stichthread.cpp \
+    stichworker.cpp
 
 HEADERS  += \
     tiledownloader.h \
     maputils.h \
-    filedownloader.h
+    filedownloader.h \
+    stichthread.h \
+    stichworker.h
 
 FORMS    += \
     tiledownloader.ui
