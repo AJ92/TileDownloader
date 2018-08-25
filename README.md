@@ -3,9 +3,9 @@ TileDownloader
 
 A simple Bing maps tile downloader and sticher
 
-[![screenshot1](/screenshots/tiledownloader.jpg)
+![screenshot1](/screenshots/tiledownloader.jpg)
 
-[![result2](/screenshots/result.jpg)
+![result2](/screenshots/result.jpg)
 
 Use at your own risk!
 
